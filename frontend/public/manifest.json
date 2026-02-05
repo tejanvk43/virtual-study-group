@@ -1,0 +1,10 @@
+{
+  "short_name": "StudyGroup",
+  "name": "Virtual Study Group Platform",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "description": "A collaborative learning platform for study groups with real-time chat, AI assistance, and interactive features."
+}
