@@ -1,235 +1,562 @@
-# Virtual Study Group Platform
+<div align="center">
 
-A comprehensive AI-powered virtual study group platform that enables collaborative learning through real-time communication, study sessions, AI assistance, and interactive tools.
+# 📚 Virtual Study Group Platform
 
-## Features
+### AI-Powered Collaborative Learning Made Simple
 
-### Core Features
-- **User Authentication & Profiles**: Secure registration/login with customizable user profiles and study preferences
-- **Study Groups**: Create, join, and manage study groups with different privacy levels and subjects
-- **Real-time Chat**: Instant messaging with emoji reactions, file sharing, and message editing
-- **AI Study Assistant**: Integrated AI help for explanations, study plans, quiz generation, and concept clarification
-- **Study Sessions**: Schedule, host, and participate in live study sessions with agenda management
-- **Interactive Whiteboard**: Collaborative drawing and note-taking during sessions
-- **Progress Tracking**: Study time tracking, streaks, achievements, and statistics
-- **Resource Sharing**: Upload and share files, links, and notes within groups
+[![Node.js](https://img.shields.io/badge/Node.js-v16+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.5-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socket.io&logoColor=white)](https://socket.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-### AI-Powered Features
-- **Study Assistant**: Ask questions and get intelligent responses contextual to your study group
-- **Study Plan Generation**: AI-generated personalized study plans based on subjects and goals
-- **Concept Explanations**: Get detailed explanations of complex topics with examples
-- **Quiz Generation**: Auto-generate quizzes for practice and assessment
-- **Session Insights**: AI analysis of study sessions with key topics and recommendations
+A comprehensive virtual study group platform that enables collaborative learning through real-time communication, scheduled study sessions, AI-powered assistance, and interactive collaboration tools.
 
-### Collaboration Features
-- **Real-time Communication**: WebSocket-based instant messaging and notifications
-- **Screen Sharing**: Share your screen during study sessions
-- **Collaborative Notes**: Shared note-taking during sessions
-- **Group Management**: Role-based permissions (owner, moderator, member)
-- **Session Recording**: Optional recording of study sessions for later review
+[Getting Started](#-quick-start) •
+[Features](#-features) •
+[Documentation](#-api-documentation) •
+[Contributing](#-contributing)
 
-## Technology Stack
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Technology Stack](#-technology-stack)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [API Documentation](#-api-documentation)
+- [Development](#-development)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🎯 Overview
+
+Virtual Study Group is a full-stack web application designed to facilitate collaborative online learning. It combines real-time communication, AI-powered study assistance, and interactive tools to create an engaging educational environment.
+
+### Why Virtual Study Group?
+
+- **Collaborative Learning**: Study together with peers in real-time, regardless of location
+- **AI-Powered Assistance**: Get instant help with concepts, generate study plans, and create practice quizzes
+- **Organized Sessions**: Schedule and manage study sessions with built-in agenda management
+- **Progress Tracking**: Monitor your learning journey with detailed analytics and achievements
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & User Management
+| Feature | Description |
+|---------|-------------|
+| Secure Registration | Email-based signup with validation |
+| JWT Authentication | Token-based secure sessions |
+| User Profiles | Customizable profiles with study preferences |
+| Session Persistence | Remember me functionality |
+
+### 👥 Study Groups
+| Feature | Description |
+|---------|-------------|
+| Group Creation | Create public or private study groups |
+| Subject Organization | Categorize groups by academic subjects |
+| Role Management | Owner, moderator, and member permissions |
+| Invite System | Share unique codes to invite members |
+
+### 💬 Real-Time Communication
+| Feature | Description |
+|---------|-------------|
+| Instant Messaging | WebSocket-powered live chat |
+| Message Reactions | Express feedback with emoji reactions |
+| File Sharing | Share documents, images, and resources |
+| Online Status | See who's available in real-time |
+
+### 🤖 AI Study Assistant
+| Feature | Description |
+|---------|-------------|
+| Context-Aware Help | Get answers relevant to your study topic |
+| Study Plan Generator | AI-created personalized learning roadmaps |
+| Concept Explanations | Detailed breakdowns with examples |
+| Quiz Generation | Auto-generated practice questions |
+| Session Insights | AI analysis and recommendations |
+
+### 📅 Study Sessions
+| Feature | Description |
+|---------|-------------|
+| Session Scheduling | Plan ahead with calendar integration |
+| Agenda Management | Structured session topics and goals |
+| Interactive Whiteboard | Collaborative drawing and diagrams |
+| Session Notes | Shared note-taking during sessions |
+| Recording Support | Review sessions later |
+
+### 📊 Progress Tracking
+| Feature | Description |
+|---------|-------------|
+| Study Time Logging | Track hours spent learning |
+| Streak System | Maintain daily study habits |
+| Achievements | Unlock badges for milestones |
+| Analytics Dashboard | Visualize your progress |
+
+---
+
+## 🛠 Technology Stack
 
 ### Backend
-- **Node.js** with **Express.js** - Server framework
-- **MongoDB** with **Mongoose** - Database and ODM
-- **Socket.IO** - Real-time communication
-- **JWT** - Authentication
-- **OpenAI API** - AI features
-- **Multer** - File upload handling
-- **bcryptjs** - Password hashing
+| Technology | Purpose |
+|------------|---------|
+| **Node.js** | Runtime environment |
+| **Express.js** | Web application framework |
+| **MongoDB** | NoSQL database |
+| **Mongoose** | MongoDB ODM |
+| **Socket.IO** | Real-time bidirectional communication |
+| **JWT** | Authentication tokens |
+| **OpenAI API** | AI-powered features |
+| **bcryptjs** | Password hashing |
+| **Helmet** | Security middleware |
+| **Multer** | File upload handling |
 
 ### Frontend
-- **React 18** with **TypeScript** - UI framework
-- **Material-UI (MUI)** - Component library
-- **React Router** - Navigation
-- **Zustand** - State management
-- **React Query** - Server state management
-- **Socket.IO Client** - Real-time communication
-- **Fabric.js** - Whiteboard functionality
-- **Axios** - HTTP client
+| Technology | Purpose |
+|------------|---------|
+| **React 18** | UI library |
+| **TypeScript** | Type-safe JavaScript |
+| **Material-UI** | Component library |
+| **React Router v6** | Client-side routing |
+| **Zustand** | State management |
+| **React Query** | Server state & caching |
+| **Socket.IO Client** | Real-time communication |
+| **Fabric.js** | Canvas & whiteboard |
+| **Axios** | HTTP client |
+| **React Hook Form** | Form handling |
 
-## Project Structure
+---
 
-```
-virtual-study-group/
-├── backend/
-│   ├── models/          # Database models
-│   ├── routes/          # API routes
-│   ├── middleware/      # Custom middleware
-│   ├── server.js        # Main server file
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/  # Reusable UI components
-│   │   ├── pages/       # Page components
-│   │   ├── stores/      # Zustand stores
-│   │   ├── services/    # API services
-│   │   ├── contexts/    # React contexts
-│   │   ├── types/       # TypeScript types
-│   │   └── App.tsx      # Main app component
-│   └── package.json
-└── package.json         # Root package.json
-
-```
-
-## Setup Instructions
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- MongoDB (local installation or MongoDB Atlas)
-- OpenAI API key (optional, for AI features)
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v16.0.0 or higher) - [Download](https://nodejs.org/)
+- **MongoDB** (v5.0 or higher) - [Download](https://www.mongodb.com/try/download/community) or use [MongoDB Atlas](https://www.mongodb.com/atlas)
+- **npm** or **yarn** package manager
+- **OpenAI API Key** (optional, for AI features) - [Get API Key](https://platform.openai.com/api-keys)
 
 ### Installation
 
-1. **Clone and install dependencies:**
-   ```bash
-   cd "c:\Users\pteja\OneDrive\Desktop\virtual study group\final"
-   npm run install-deps
-   ```
+#### Option 1: Automated Setup (Windows)
 
-2. **Backend Configuration:**
-   ```bash
-   cd backend
-   cp .env.example .env
-   ```
-   Edit `.env` file with your configuration:
-   ```
-   MONGODB_URI=mongodb://localhost:27017/study-group
-   JWT_SECRET=your-super-secret-jwt-key
-   OPENAI_API_KEY=your-openai-api-key (optional)
-   CLIENT_URL=http://localhost:3000
-   PORT=5000
-   ```
+```cmd
+# Run the setup script
+setup.bat
 
-3. **Start Development Servers:**
-   ```bash
-   # From root directory
-   npm run dev
-   ```
-   This will start both backend (port 5000) and frontend (port 3000) concurrently.
-
-### Individual Server Startup
-
-**Backend only:**
-```bash
-cd backend
+# Start the application
 npm run dev
 ```
 
-**Frontend only:**
-```bash
-cd frontend
-npm start
+#### Option 2: Manual Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/virtual-study-group.git
+   cd virtual-study-group
+   ```
+
+2. **Install all dependencies**
+   ```bash
+   npm run install-deps
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   # Navigate to backend directory
+   cd backend
+   
+   # Create environment file
+   cp .env.example .env
+   ```
+
+4. **Edit the `.env` file**
+   ```env
+   # Server Configuration
+   PORT=5000
+   NODE_ENV=development
+   
+   # Database
+   MONGODB_URI=mongodb://localhost:27017/study-group
+   
+   # Authentication
+   JWT_SECRET=your-secure-random-string-here
+   JWT_EXPIRE=7d
+   
+   # Client URL (for CORS)
+   CLIENT_URL=http://localhost:3000
+   
+   # AI Features (Optional)
+   OPENAI_API_KEY=sk-your-openai-api-key
+   ```
+
+5. **Start the development servers**
+   ```bash
+   # From the root directory
+   npm run dev
+   ```
+
+6. **Access the application**
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - Backend API: [http://localhost:5000](http://localhost:5000)
+
+---
+
+## 📁 Project Structure
+
+```
+virtual-study-group/
+├── 📂 backend/
+│   ├── 📂 middleware/       # Express middleware (auth, validation)
+│   │   └── auth.js          # JWT authentication middleware
+│   ├── 📂 models/           # Mongoose data models
+│   │   ├── Group.js         # Study group schema
+│   │   ├── Message.js       # Chat message schema
+│   │   ├── StudySession.js  # Session schema
+│   │   └── User.js          # User schema
+│   ├── 📂 routes/           # API route handlers
+│   │   ├── ai.js            # AI assistant endpoints
+│   │   ├── auth.js          # Authentication endpoints
+│   │   ├── chat.js          # Messaging endpoints
+│   │   ├── groups.js        # Group management endpoints
+│   │   ├── sessions.js      # Study session endpoints
+│   │   └── users.js         # User management endpoints
+│   ├── server.js            # Express app entry point
+│   └── package.json
+│
+├── 📂 frontend/
+│   ├── 📂 public/           # Static assets
+│   ├── 📂 src/
+│   │   ├── 📂 components/   # Reusable UI components
+│   │   │   └── Layout/      # Navigation & layout components
+│   │   ├── 📂 contexts/     # React context providers
+│   │   │   └── SocketContext.tsx
+│   │   ├── 📂 pages/        # Page components
+│   │   │   ├── AIAssistant.tsx
+│   │   │   ├── AuthPage.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── GroupDetail.tsx
+│   │   │   ├── Groups.tsx
+│   │   │   ├── Profile.tsx
+│   │   │   ├── SessionDetail.tsx
+│   │   │   └── StudySessions.tsx
+│   │   ├── 📂 services/     # API service functions
+│   │   ├── 📂 stores/       # Zustand state stores
+│   │   ├── 📂 types/        # TypeScript type definitions
+│   │   ├── App.tsx          # Main application component
+│   │   └── index.tsx        # Application entry point
+│   └── package.json
+│
+├── package.json             # Root package with workspace scripts
+├── setup.bat                # Windows setup script
+├── start.bat                # Windows start script
+└── README.md
 ```
 
-## API Endpoints
+---
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
+## ⚙ Configuration
 
-### Groups
-- `GET /api/groups/public` - Get public groups
-- `GET /api/groups/my-groups` - Get user's groups
-- `POST /api/groups` - Create new group
-- `GET /api/groups/:id` - Get group details
-- `POST /api/groups/:id/join` - Join group
-- `POST /api/groups/:id/leave` - Leave group
+### Environment Variables
 
-### Chat
-- `GET /api/chat/group/:groupId` - Get group messages
-- `POST /api/chat/send` - Send message
-- `PUT /api/chat/:messageId` - Edit message
-- `DELETE /api/chat/:messageId` - Delete message
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | No | `5000` | Backend server port |
+| `NODE_ENV` | No | `development` | Environment mode |
+| `MONGODB_URI` | **Yes** | - | MongoDB connection string |
+| `JWT_SECRET` | **Yes** | - | Secret key for JWT signing |
+| `JWT_EXPIRE` | No | `7d` | Token expiration time |
+| `CLIENT_URL` | No | `http://localhost:3000` | Frontend URL for CORS |
+| `OPENAI_API_KEY` | No | - | OpenAI API key for AI features |
 
-### AI Features
-- `POST /api/ai/study-assistant` - AI study help
-- `POST /api/ai/study-plan` - Generate study plan
-- `POST /api/ai/explain` - Explain concepts
-- `POST /api/ai/quiz` - Generate quiz
+### Database Setup
 
-### Study Sessions
-- `POST /api/sessions` - Create session
-- `GET /api/sessions/group/:groupId` - Get group sessions
-- `GET /api/sessions/my-sessions` - Get user sessions
-- `POST /api/sessions/:id/join` - Join session
-- `POST /api/sessions/:id/start` - Start session
-- `POST /api/sessions/:id/end` - End session
+**Local MongoDB:**
+```bash
+# Start MongoDB service
+mongod --dbpath /path/to/data
+```
 
-## Key Features Walkthrough
+**MongoDB Atlas:**
+1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas)
+2. Get your connection string
+3. Replace `MONGODB_URI` in `.env`
 
-### 1. User Registration & Authentication
-- Secure registration with validation
-- JWT-based authentication
-- Persistent login sessions
-- User profile management
+---
 
-### 2. Study Group Management
-- Create groups with different privacy levels
-- Invite system with unique codes
-- Role-based permissions
-- Group statistics and analytics
+## 📖 API Documentation
 
-### 3. Real-time Communication
-- Instant messaging with Socket.IO
-- Message reactions and replies
-- File and image sharing
-- Online status indicators
+### Base URL
+```
+http://localhost:5000/api
+```
 
-### 4. AI Study Assistant
-- Context-aware responses
-- Study plan generation
-- Concept explanations
-- Practice quiz creation
+### Authentication Endpoints
 
-### 5. Study Sessions
-- Scheduled and impromptu sessions
-- Interactive whiteboard
-- Screen sharing capabilities
-- Session recording and notes
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/auth/register` | Create new user account | No |
+| `POST` | `/auth/login` | Authenticate user | No |
+| `POST` | `/auth/logout` | End user session | Yes |
+| `GET` | `/auth/me` | Get current user profile | Yes |
 
-### 6. Progress Tracking
-- Study time logging
-- Achievement system
-- Streak tracking
-- Performance analytics
+### Group Endpoints
 
-## Future Enhancements
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `GET` | `/groups/public` | List public groups | No |
+| `GET` | `/groups/my-groups` | Get user's groups | Yes |
+| `POST` | `/groups` | Create new group | Yes |
+| `GET` | `/groups/:id` | Get group details | Yes |
+| `PUT` | `/groups/:id` | Update group | Yes (Owner) |
+| `DELETE` | `/groups/:id` | Delete group | Yes (Owner) |
+| `POST` | `/groups/:id/join` | Join a group | Yes |
+| `POST` | `/groups/:id/leave` | Leave a group | Yes |
 
-- Video/audio calling integration
-- Mobile app development
-- Advanced AI tutoring features
-- Gamification elements
-- Integration with external learning platforms
-- Offline mode support
-- Advanced analytics dashboard
+### Chat Endpoints
 
-## Contributing
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `GET` | `/chat/group/:groupId` | Get group messages | Yes |
+| `POST` | `/chat/send` | Send new message | Yes |
+| `PUT` | `/chat/:messageId` | Edit message | Yes |
+| `DELETE` | `/chat/:messageId` | Delete message | Yes |
 
-This is a demonstration project showcasing a full-stack application with modern technologies and AI integration. The codebase follows best practices for:
+### AI Endpoints
 
-- TypeScript usage
-- Component architecture
-- State management
-- API design
-- Real-time communication
-- AI integration
-- Security practices
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/ai/study-assistant` | Get AI study help | Yes |
+| `POST` | `/ai/study-plan` | Generate study plan | Yes |
+| `POST` | `/ai/explain` | Explain a concept | Yes |
+| `POST` | `/ai/quiz` | Generate practice quiz | Yes |
 
-## License
+### Session Endpoints
 
-MIT License - This is an educational project demonstrating modern web development practices.
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/sessions` | Create study session | Yes |
+| `GET` | `/sessions/group/:groupId` | Get group sessions | Yes |
+| `GET` | `/sessions/my-sessions` | Get user's sessions | Yes |
+| `GET` | `/sessions/:id` | Get session details | Yes |
+| `POST` | `/sessions/:id/join` | Join a session | Yes |
+| `POST` | `/sessions/:id/start` | Start session | Yes (Host) |
+| `POST` | `/sessions/:id/end` | End session | Yes (Host) |
 
-## Support
+### WebSocket Events
 
-This platform demonstrates enterprise-level features including:
-- Scalable architecture
-- Real-time capabilities
-- AI integration
-- Modern UI/UX
-- Comprehensive API design
-- Security best practices
-- Performance optimization
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `connection` | Server ← Client | Client connects |
+| `join-group` | Server ← Client | Join group room |
+| `leave-group` | Server ← Client | Leave group room |
+| `send-message` | Server ← Client | Send chat message |
+| `new-message` | Server → Client | Receive new message |
+| `user-joined` | Server → Client | User joined notification |
+| `user-left` | Server → Client | User left notification |
+| `typing` | Bidirectional | Typing indicator |
+
+---
+
+## 💻 Development
+
+### Available Scripts
+
+**Root directory:**
+```bash
+npm run dev          # Start both servers concurrently
+npm run server       # Start backend only
+npm run client       # Start frontend only
+npm run build        # Build frontend for production
+npm run install-deps # Install all dependencies
+```
+
+**Backend:**
+```bash
+cd backend
+npm run dev    # Development with nodemon
+npm start      # Production start
+npm test       # Run tests
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm start      # Development server
+npm run build  # Production build
+npm test       # Run tests
+```
+
+### Code Style
+
+This project follows these conventions:
+- **ESLint** for JavaScript/TypeScript linting
+- **Prettier** for code formatting
+- **TypeScript** strict mode enabled
+- **React** functional components with hooks
+
+### Testing
+
+```bash
+# Run backend tests
+cd backend && npm test
+
+# Run frontend tests
+cd frontend && npm test
+
+# Run all tests
+npm test
+```
+
+---
+
+## 🚢 Deployment
+
+### Production Build
+
+1. **Build the frontend:**
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Set environment variables:**
+   ```env
+   NODE_ENV=production
+   MONGODB_URI=your-production-mongodb-uri
+   JWT_SECRET=your-secure-production-secret
+   ```
+
+3. **Start the server:**
+   ```bash
+   cd backend
+   npm start
+   ```
+
+### Docker Deployment
+
+```dockerfile
+# Dockerfile example
+FROM node:18-alpine
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN cd frontend && npm run build
+
+EXPOSE 5000
+CMD ["npm", "start"]
+```
+
+### Recommended Hosting
+
+| Service | Use Case |
+|---------|----------|
+| **Heroku** | Quick deployment with MongoDB Atlas |
+| **Vercel** | Frontend hosting |
+| **Railway** | Full-stack deployment |
+| **DigitalOcean** | VPS with full control |
+| **AWS** | Enterprise scalability |
+
+---
+
+## 🗺 Roadmap
+
+### Planned Features
+
+- [ ] 🎥 Video/Audio calling integration
+- [ ] 📱 Mobile application (React Native)
+- [ ] 🎮 Gamification and leaderboards
+- [ ] 📚 Integration with external learning platforms
+- [ ] 🌐 Offline mode support
+- [ ] 📈 Advanced analytics dashboard
+- [ ] 🌍 Multi-language support
+- [ ] 🔔 Push notifications
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. **Fork the repository**
+
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Commit your changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+
+4. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+
+5. **Open a Pull Request**
+
+### Contribution Guidelines
+
+- Follow existing code style and conventions
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2024 Virtual Study Group
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+---
+
+## 🙏 Acknowledgments
+
+- [OpenAI](https://openai.com/) for AI capabilities
+- [Material-UI](https://mui.com/) for the component library
+- [Socket.IO](https://socket.io/) for real-time communication
+- [MongoDB](https://www.mongodb.com/) for the database solution
+
+---
+
+<div align="center">
+
+**[⬆ Back to Top](#-virtual-study-group-platform)**
+
+Made with ❤️ for collaborative learning
+
+</div>

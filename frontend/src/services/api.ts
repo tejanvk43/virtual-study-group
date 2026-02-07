@@ -25,6 +25,11 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 console.log('Configured API URL:', API_BASE_URL);
 
+// Debug: show alert on mobile to verify API URL (remove in production)
+if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  console.warn('MOBILE DEBUG - API URL:', API_BASE_URL);
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increase timeout for network requests
