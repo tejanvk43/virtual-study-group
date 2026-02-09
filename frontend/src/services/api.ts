@@ -1,33 +1,63 @@
 import axios from 'axios';
 
 // Dynamically determine API URL based on current hostname for network access
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   if (process.env.REACT_APP_API_URL) {
     console.log('Using environment API URL:', process.env.REACT_APP_API_URL);
     return process.env.REACT_APP_API_URL;
   }
   
-  // Force localhost for development to avoid network issues
+  // Use current hostname for network access (works on mobile devices)
   const hostname = window.location.hostname;
+  const origin = window.location.origin;
+  const port = window.location.port;
+  const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+  
+  console.log('🔍 Hostname Detection:');
+  console.log('  - window.location.hostname:', hostname);
+  console.log('  - window.location.origin:', origin);
+  console.log('  - window.location.port:', port);
+  console.log('  - window.location.protocol:', window.location.protocol);
+  console.log('  - window.location.href:', window.location.href);
+  
   let apiUrl;
   
+  // Check if hostname is localhost or 127.0.0.1
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     apiUrl = 'http://localhost:5000/api';
+    console.log('📍 Using localhost HTTP API');
   } else {
-    apiUrl = `http://${hostname}:5000/api`;
+    // Network clients use HTTPS on port 5443 (required for camera/mic access)
+    apiUrl = `https://${hostname}:5443/api`;
+    console.log('🌐 Using network HTTPS API URL:', apiUrl);
   }
   
-  console.log('API Base URL:', apiUrl);
-  console.log('Current hostname:', hostname);
+  console.log('✅ Final API Base URL:', apiUrl);
   return apiUrl;
 };
 
-const API_BASE_URL = getApiBaseUrl();
-console.log('Configured API URL:', API_BASE_URL);
+// Calculate API URL dynamically - recalculate on each access for mobile devices
+let API_BASE_URL = getApiBaseUrl();
+console.log('📌 Initial API URL set to:', API_BASE_URL);
+
+// Recalculate API URL if hostname changes (for mobile network access)
+const getCurrentApiBaseUrl = () => {
+  const currentUrl = getApiBaseUrl();
+  if (currentUrl !== API_BASE_URL) {
+    console.warn('⚠️ API URL changed from', API_BASE_URL, 'to', currentUrl);
+    API_BASE_URL = currentUrl;
+    // Update axios default baseURL
+    api.defaults.baseURL = currentUrl;
+  }
+  return API_BASE_URL;
+};
 
 // Debug: show alert on mobile to verify API URL (remove in production)
 if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-  console.warn('MOBILE DEBUG - API URL:', API_BASE_URL);
+  console.warn('🌐 MOBILE/NETWORK ACCESS DETECTED');
+  console.warn('📱 API URL:', API_BASE_URL);
+  console.warn('📱 Frontend URL:', window.location.origin);
+  console.warn('📱 Hostname:', window.location.hostname);
 }
 
 const api = axios.create({
@@ -39,13 +69,43 @@ const api = axios.create({
   withCredentials: false, // Set to false for cross-origin requests without cookies
 });
 
+// Update baseURL before each request to ensure correct URL for network access
+api.interceptors.request.use(
+  (config) => {
+    // ALWAYS recalculate API URL fresh on each request (critical for mobile network access)
+    // Don't rely on cached value - get fresh hostname from window.location
+    const freshApiUrl = getApiBaseUrl();
+    
+    // Force update the baseURL
+    config.baseURL = freshApiUrl;
+    API_BASE_URL = freshApiUrl; // Update cached value
+    
+    console.log('🔄 Request interceptor - Using API URL:', freshApiUrl);
+    console.log('🔄 Current window.location.hostname:', window.location.hostname);
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Request interceptor to add auth token and log requests
 api.interceptors.request.use(
   (config) => {
+    // Double-check baseURL is correct (should already be set by previous interceptor)
+    const freshApiUrl = getApiBaseUrl();
+    if (config.baseURL !== freshApiUrl) {
+      console.warn('⚠️ baseURL mismatch! Correcting from', config.baseURL, 'to', freshApiUrl);
+      config.baseURL = freshApiUrl;
+    }
+    
     const fullUrl = (config.baseURL || '') + (config.url || '');
-    console.log('Making request to:', fullUrl);
-    console.log('Request method:', config.method?.toUpperCase());
-    console.log('Request data:', config.data);
+    console.log('🌐 Making request to:', fullUrl);
+    console.log('📡 Request method:', config.method?.toUpperCase());
+    console.log('📦 Request data:', config.data ? 'Present' : 'None');
+    console.log('📍 Detected hostname:', window.location.hostname);
+    
     const token = localStorage.getItem('auth-storage');
     if (token) {
       try {
@@ -88,13 +148,25 @@ api.interceptors.response.use(
                           (!error.response && error.request);
     
     if (isNetworkError) {
-      console.error('🔥 Network error detected - server may be unreachable');
-      console.error('- Trying to connect to:', API_BASE_URL);
-      console.error('- Make sure backend is running on port 5000');
+      // Get current API URL (recalculate to ensure it's correct)
+      const currentApiUrl = getCurrentApiBaseUrl();
+      const currentHostname = window.location.hostname;
       
-      const networkError = new Error(`Cannot connect to server. Please make sure the server is running.`);
+      console.error('🔥 Network error detected - server may be unreachable');
+      console.error('- Trying to connect to:', currentApiUrl);
+      console.error('- Current hostname:', currentHostname);
+      console.error('- Current origin:', window.location.origin);
+      console.error('- Make sure backend is running on port 5000');
+      console.error('- Check Windows Firewall allows port 5000');
+      console.error('- Verify both devices are on the same network');
+      console.error('- Note: Backend uses HTTPS with self-signed certificates');
+      console.error('- Test backend directly: https://' + currentHostname + ':5000/api/test-network');
+      console.error('- (Ignore browser certificate warnings for self-signed certs)');
+      
+      const networkError = new Error(`Cannot connect to server at ${currentApiUrl}. Please check:\n1. Backend is running on port 5000\n2. Windows Firewall allows port 5000\n3. Both devices are on the same network\n4. Backend uses HTTPS (https://${currentHostname}:5000)\n5. Test: https://${currentHostname}:5000/api/test-network`);
       (networkError as any).isNetworkError = true;
       (networkError as any).originalError = error;
+      (networkError as any).apiUrl = currentApiUrl;
       return Promise.reject(networkError);
     }
     

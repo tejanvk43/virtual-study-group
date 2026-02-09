@@ -76,7 +76,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
         isRecurring: false
       };
 
-      const response = await fetch('http://localhost:5000/api/study-sessions/personal', {
+      // Use dynamic API URL for network access
+      const { getApiBaseUrl } = await import('../../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+      
+      const response = await fetch(`${apiBaseUrl}/study-sessions/personal`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
-    "client": "cd frontend && set HOST=0.0.0.0&& npm start",
+    "client": "cd frontend && set HOST=0.0.0.0&& set HTTPS=true&& set SSL_CRT_FILE=../backend/certs/cert.pem&& set SSL_KEY_FILE=../backend/certs/key.pem&& npm start",
     "build": "cd frontend && npm run build",
     "install-deps": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "start": "cd backend && npm start"

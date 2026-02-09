@@ -1,5 +1,8 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -15,14 +18,31 @@ const aiRoutes = require('./routes/ai');
 const sessionRoutes = require('./routes/sessions');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
+
+// Create HTTPS server as primary
+const certPath = path.join(__dirname, 'certs', 'cert.pem');
+const keyPath = path.join(__dirname, 'certs', 'key.pem');
+
+let server;
+let io;
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  server = https.createServer(httpsOptions, app);
+  console.log('🔐 HTTPS Server initialized (primary)');
+} else {
+  server = http.createServer(app);
+  console.log('⚠️  HTTP Server initialized (HTTPS not configured)');
+}
+
+io = socketIo(server, {
   cors: {
     origin: function (origin, callback) {
-      // Allow requests with no origin or from local network
-      if (!origin) return callback(null, true);
-      const isAllowed = /^http:\/\/(localhost|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+):[0-9]+$/.test(origin);
-      callback(null, true); // Allow all in development
+      // Allow all origins in development
+      callback(null, true);
     },
     methods: ["GET", "POST"]
   }
@@ -50,9 +70,9 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Check if origin is in allowed list or matches local network pattern
+    // Check if origin is in allowed list or matches local network pattern (HTTP and HTTPS)
     const isAllowed = allowedOrigins.includes(origin) || 
-                      /^http:\/\/(localhost|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]+\.[0-9]+):[0-9]+$/.test(origin);
+                      /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]+\.[0-9]+):[0-9]+$/.test(origin);
     
     if (isAllowed) {
       console.log('Origin allowed:', origin);
@@ -92,14 +112,35 @@ app.set('io', io);
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Virtual Study Group API is running' });
+  res.json({ 
+    status: 'ok', 
+    message: 'Virtual Study Group API is running',
+    timestamp: new Date().toISOString(),
+    clientIp: req.ip || req.connection.remoteAddress
+  });
 });
 
 app.get('/api', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Virtual Study Group API',
-    endpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/ai', '/api/study-sessions']
+    endpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/ai', '/api/study-sessions'],
+    clientIp: req.ip || req.connection.remoteAddress
+  });
+});
+
+// Network test endpoint
+app.get('/api/test-network', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Network connection successful',
+    serverTime: new Date().toISOString(),
+    clientIp: req.ip || req.connection.remoteAddress,
+    headers: {
+      origin: req.headers.origin,
+      host: req.headers.host,
+      'user-agent': req.headers['user-agent']
+    }
   });
 });
 
@@ -114,7 +155,7 @@ app.use('/api/study-sessions', sessionRoutes);
 // Socket.IO connection handling
 const connectedUsers = new Map(); // userId -> socketId
 const userSockets = new Map(); // socketId -> userId
-const sessionParticipants = new Map(); // sessionId -> Set of {userId, socketId, userInfo}
+const sessionParticipants = new Map(); // sessionId -> Map<userId, {userId, socketId, userInfo}>
 const liveGroups = new Map(); // groupId -> Set of active users
 const userStatus = new Map(); // userId -> { isStudying, currentGroup, lastActivity }
 
@@ -278,80 +319,141 @@ io.on('connection', (socket) => {
     
     console.log(`User ${userId} stopped studying after ${duration} minutes`);
   });
-  socket.on('join-session', (data) => {
+  socket.on('join-session', async (data) => {
     const { sessionId, userId } = data;
     socket.join(sessionId);
     socket.sessionId = sessionId;
     socket.userId = userId;
 
-    // Add to session participants
-    if (!sessionParticipants.has(sessionId)) {
-      sessionParticipants.set(sessionId, new Set());
+    try {
+      // Fetch user information from database
+      const User = require('./models/User');
+      const user = await User.findById(userId).select('firstName lastName avatar username');
+      
+      // Initialize session participants map if needed
+      if (!sessionParticipants.has(sessionId)) {
+        sessionParticipants.set(sessionId, new Map());
+      }
+      
+      const participantsMap = sessionParticipants.get(sessionId);
+      
+      // Check if user already exists (reconnection scenario)
+      const existingParticipant = participantsMap.get(userId);
+      if (existingParticipant) {
+        // Update socketId for reconnection
+        existingParticipant.socketId = socket.id;
+        console.log(`User ${userId} reconnected to session ${sessionId}`);
+      }
+      
+      const participantInfo = {
+        userId,
+        socketId: socket.id,
+        name: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+        avatar: user?.avatar || '',
+        username: user?.username || '',
+        joinedAt: existingParticipant?.joinedAt || new Date()
+      };
+      
+      // Store participant (will update if exists, add if new)
+      participantsMap.set(userId, participantInfo);
+      
+      // Get existing participants (excluding current user)
+      const existingParticipants = Array.from(participantsMap.values())
+        .filter(p => p.userId !== userId)
+        .map(p => ({
+          userId: p.userId,
+          socketId: p.socketId,
+          name: p.name || 'Unknown',
+          avatar: p.avatar || '',
+          username: p.username || '',
+          joinedAt: p.joinedAt
+        }));
+      
+      // Send existing participants to the new joiner
+      socket.emit('existing-participants', existingParticipants);
+      
+      // Notify existing participants about new joiner (only if it's a new join, not reconnection)
+      if (!existingParticipant) {
+        socket.to(sessionId).emit('participant-joined', {
+          userId: participantInfo.userId,
+          socketId: participantInfo.socketId,
+          name: participantInfo.name,
+          avatar: participantInfo.avatar,
+          username: participantInfo.username,
+          joinedAt: participantInfo.joinedAt
+        });
+      }
+      
+      console.log(`User ${userId} (${participantInfo.name}) joined session ${sessionId}. Total participants: ${participantsMap.size}`);
+    } catch (error) {
+      console.error('Error in join-session:', error);
+      // Still allow join but with minimal info
+      const participantInfo = {
+        userId,
+        socketId: socket.id,
+        name: 'Unknown',
+        avatar: '',
+        username: '',
+        joinedAt: new Date()
+      };
+      
+      if (!sessionParticipants.has(sessionId)) {
+        sessionParticipants.set(sessionId, new Map());
+      }
+      sessionParticipants.get(sessionId).set(userId, participantInfo);
     }
-    
-    const participantInfo = {
-      userId,
-      socketId: socket.id,
-      joinedAt: new Date()
-    };
-    
-    // Get existing participants before adding new one
-    const existingParticipants = Array.from(sessionParticipants.get(sessionId) || []);
-    
-    sessionParticipants.get(sessionId).add(participantInfo);
-    
-    // Send existing participants to the new joiner
-    socket.emit('existing-participants', existingParticipants);
-    
-    // Notify existing participants about new joiner
-    socket.to(sessionId).emit('participant-joined', participantInfo);
-    
-    console.log(`User ${userId} joined session ${sessionId}. Existing participants:`, existingParticipants.length);
   });
 
   socket.on('leave-session', (sessionId) => {
     if (sessionParticipants.has(sessionId)) {
-      const participants = sessionParticipants.get(sessionId);
-      // Remove participant
-      for (let participant of participants) {
+      const participantsMap = sessionParticipants.get(sessionId);
+      // Find and remove participant by socketId
+      for (let [userId, participant] of participantsMap.entries()) {
         if (participant.socketId === socket.id) {
-          participants.delete(participant);
+          participantsMap.delete(userId);
           socket.to(sessionId).emit('participant-left', participant.userId);
+          console.log(`User ${userId} (${participant.name}) left session ${sessionId}. Remaining: ${participantsMap.size}`);
           break;
         }
       }
+      
+      // Clean up empty sessions
+      if (participantsMap.size === 0) {
+        sessionParticipants.delete(sessionId);
+      }
     }
     socket.leave(sessionId);
-    console.log(`User left session ${sessionId}`);
   });
 
-  // WebRTC Signaling for Video Calls
-  socket.on('offer', (data) => {
-    const { sessionId, offer, to } = data;
-    console.log(`Sending offer from ${socket.userId} to ${to}`);
-    // Send to specific participant, not broadcast
-    io.to(to).emit('offer', {
-      offer,
-      from: socket.userId
+  // Socket.IO Video Frame Streaming (replaces WebRTC)
+  let videoFrameCount = 0;
+  socket.on('video-frame', (data, callback) => {
+    const { sessionId, frameData, userId } = data;
+    videoFrameCount++;
+    if (videoFrameCount <= 3 || videoFrameCount % 300 === 0) {
+      console.log(`📹 Video frame #${videoFrameCount} from user ${userId} in session ${sessionId} (${frameData?.length || 0} bytes)`);
+    }
+    
+    // Broadcast video frame to all other participants in the session
+    socket.to(sessionId).emit('video-frame', {
+      from: socket.id,
+      frameData,
+      userId: userId || socket.userId
     });
+    
+    // Acknowledge the frame was sent
+    if (callback && typeof callback === 'function') {
+      callback();
+    }
   });
 
-  socket.on('answer', (data) => {
-    const { sessionId, answer, to } = data;
-    console.log(`Sending answer from ${socket.userId} to ${to}`);
-    // Send to specific participant, not broadcast
-    io.to(to).emit('answer', {
-      answer,
-      from: socket.userId
-    });
-  });
-
-  socket.on('ice-candidate', (data) => {
-    const { sessionId, candidate, to } = data;
-    // Send to specific participant, not broadcast
-    io.to(to).emit('ice-candidate', {
-      candidate,
-      from: socket.userId
+  socket.on('audio-chunk', (data) => {
+    const { sessionId, audioData, userId } = data;
+    // Broadcast audio chunk to all other participants in the session
+    socket.to(sessionId).emit('audio-chunk', {
+      from: socket.id,
+      audioData,
+      userId
     });
   });
 
@@ -421,11 +523,18 @@ io.on('connection', (socket) => {
     
     // Remove from session participants
     if (socket.sessionId && sessionParticipants.has(socket.sessionId)) {
-      const participants = sessionParticipants.get(socket.sessionId);
-      for (let participant of participants) {
+      const participantsMap = sessionParticipants.get(socket.sessionId);
+      // Find and remove participant by socketId
+      for (let [userId, participant] of participantsMap.entries()) {
         if (participant.socketId === socket.id) {
-          participants.delete(participant);
+          participantsMap.delete(userId);
           socket.to(socket.sessionId).emit('participant-left', participant.userId);
+          console.log(`User ${userId} disconnected from session ${socket.sessionId}. Remaining: ${participantsMap.size}`);
+          
+          // Clean up empty sessions
+          if (participantsMap.size === 0) {
+            sessionParticipants.delete(socket.sessionId);
+          }
           break;
         }
       }
@@ -453,12 +562,27 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-const HOST = '0.0.0.0'; // Listen on all network interfaces for network access
+const PORT = 5443;
+const HTTP_PORT = 5000;
+const HOST = '0.0.0.0'; // Listen on all network interfaces
 
+// Start HTTPS server (primary)
 server.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
-  console.log(`Access from local network: http://YOUR_IP:${PORT}`);
+  console.log(`✅ Server running on https://${HOST}:${PORT}`);
+  console.log(`   Local access: https://localhost:${PORT}`);
+  console.log(`   Network access: https://YOUR_IP:${PORT}`);
+});
+
+// Optional: Create HTTP redirect server on port 5000 (for convenience)
+const redirectApp = express();
+redirectApp.all('*', (req, res) => {
+  res.redirect(`https://${req.hostname}:${PORT}${req.url}`);
+});
+
+const httpServer = http.createServer(redirectApp);
+httpServer.listen(HTTP_PORT, HOST, () => {
+  console.log(`🔄 HTTP redirect server on http://${HOST}:${HTTP_PORT}`);
+  console.log(`   Redirects to https://${HOST}:${PORT}`);
 });
 
 module.exports = { app, io };

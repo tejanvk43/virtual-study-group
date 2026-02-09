@@ -18,9 +18,17 @@ const seedData = async () => {
       useUnifiedTopology: true,
     });
     
-    console.log('Connected to MongoDB. Creating seed data...');
+    console.log('Connected to MongoDB. Cleaning existing data...');
     
-    // Create sample users
+    // Clear existing data to avoid duplicates
+    await User.deleteMany({});
+    await Group.deleteMany({});
+    await StudySession.deleteMany({});
+    await Message.deleteMany({});
+    
+    console.log('Creating seed data...');
+    
+    // Create sample users (only for development/testing)
     const users = [];
     const userNames = [
       { firstName: 'Alice', lastName: 'Johnson', username: 'alice_j', email: 'alice@example.com' },

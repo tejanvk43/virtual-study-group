@@ -138,18 +138,11 @@ const AIAssistant: React.FC = () => {
     },
   ];
 
-  // Initialize with welcome message
+  // Load conversation history from API if available
   useEffect(() => {
-    const initialMessages: ChatMessage[] = [
-      {
-        id: '1',
-        content: "Hello! I'm your AI study assistant. I can help you with explanations, generate quizzes, create study plans, and answer any academic questions. What would you like to learn about today?",
-        role: 'assistant',
-        timestamp: new Date(),
-        type: 'text',
-      },
-    ];
-    setMessages(initialMessages);
+    // Messages will be populated when user starts chatting
+    // No dummy welcome message - keep it clean and professional
+    setMessages([]);
   }, []);
 
   // Auto-scroll to bottom
@@ -174,12 +167,11 @@ const AIAssistant: React.FC = () => {
     setLoading(true);
 
     try {
-      // Simulate AI response
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      const responseContent = await generateAIResponse(message);
       
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: generateAIResponse(message),
+        content: responseContent,
         role: 'assistant',
         timestamp: new Date(),
         type: 'text',
@@ -187,7 +179,8 @@ const AIAssistant: React.FC = () => {
 
       setMessages(prev => [...prev, aiResponse]);
     } catch (error) {
-      toast.error('Failed to get AI response');
+      console.error('Error getting AI response:', error);
+      toast.error('Failed to get AI response. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -201,24 +194,49 @@ const AIAssistant: React.FC = () => {
     }, 100);
   };
 
-  const generateAIResponse = (userMessage: string): string => {
-    const responses = [
-      "That's a great question! Let me break this down for you step by step...",
-      "I can help you understand this concept better. Here's what you need to know...",
-      "Excellent topic to explore! This is fundamental to understanding...",
-      "Let me provide you with a comprehensive explanation...",
-      "This is an important concept. I'll explain it with examples...",
-    ];
-    
-    if (userMessage.toLowerCase().includes('quiz') || userMessage.toLowerCase().includes('test')) {
-      return "I'd be happy to create a quiz for you! What specific topic would you like me to focus on? I can generate multiple choice, true/false, or short answer questions.";
+  const generateAIResponse = async (userMessage: string): Promise<string> => {
+    try {
+      // Call the actual AI API endpoint
+      const authStorage = localStorage.getItem('auth-storage');
+      let token = '';
+      if (authStorage) {
+        try {
+          const parsedAuth = JSON.parse(authStorage);
+          token = parsedAuth.state?.token || '';
+        } catch (error) {
+          console.error('Error parsing auth token:', error);
+        }
+      }
+
+      // Try to get a group ID from context or use a default
+      // Use dynamic API URL for network access
+      const { getApiBaseUrl } = await import('../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+      
+      const response = await fetch(`${apiBaseUrl}/ai/study-assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          groupId: 'default', // This should be replaced with actual group context
+          context: ''
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.response || "I'm here to help! Could you provide more details about what you'd like to learn?";
+      } else {
+        // Fallback if AI service is unavailable
+        return "I'm currently processing your request. Please provide more details about what you'd like to learn, and I'll help you understand it better.";
+      }
+    } catch (error) {
+      console.error('AI API error:', error);
+      return "I'm here to help with your studies! Could you provide more details about what you'd like to learn?";
     }
-    
-    if (userMessage.toLowerCase().includes('explain') || userMessage.toLowerCase().includes('what is')) {
-      return "I'll provide a detailed explanation for you. " + responses[Math.floor(Math.random() * responses.length)];
-    }
-    
-    return responses[Math.floor(Math.random() * responses.length)] + " Would you like me to provide examples or create practice questions on this topic?";
   };
 
   const handleGenerateQuiz = () => {
@@ -259,7 +277,11 @@ const AIAssistant: React.FC = () => {
         isRecurring: false
       };
 
-      const response = await fetch('http://localhost:5000/api/study-sessions/personal', {
+      // Use dynamic API URL for network access
+      const { getApiBaseUrl } = await import('../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+      
+      const response = await fetch(`${apiBaseUrl}/study-sessions/personal`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

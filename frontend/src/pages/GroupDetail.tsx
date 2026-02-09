@@ -229,7 +229,11 @@ const GroupDetail: React.FC = () => {
       }
 
       // Fetch upcoming sessions for this group
-      const response = await fetch(`http://localhost:5000/api/study-sessions/upcoming?groupId=${id}`, {
+      // Use dynamic API URL for network access
+      const { getApiBaseUrl } = await import('../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+      
+      const response = await fetch(`${apiBaseUrl}/study-sessions/upcoming?groupId=${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -338,7 +342,11 @@ const GroupDetail: React.FC = () => {
         type: 'study'
       };
 
-      const response = await fetch('http://localhost:5000/api/study-sessions', {
+      // Use dynamic API URL for network access
+      const { getApiBaseUrl } = await import('../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+      
+      const response = await fetch(`${apiBaseUrl}/study-sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
