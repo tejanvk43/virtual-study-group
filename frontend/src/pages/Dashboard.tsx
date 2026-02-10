@@ -47,6 +47,7 @@ interface DashboardData {
   totalSessions: number;
   onlineUsers: number;
   studyStreak: number;
+  totalStudyTime: number;
 }
 
 interface DashboardGroup {
@@ -370,7 +371,8 @@ const Dashboard: React.FC = () => {
     totalGroups: 0,
     totalSessions: 0,
     onlineUsers: 0,
-    studyStreak: 0
+    studyStreak: 0,
+    totalStudyTime: 0
   });
   const [liveGroups, setLiveGroups] = useState<DashboardGroup[]>([]);
   const [upcomingSessions, setUpcomingSessions] = useState<DashboardSession[]>([]);
@@ -486,16 +488,9 @@ const Dashboard: React.FC = () => {
         let sessions: any[] = [];
         
         try {
-          // Load user's groups
+          // Load ONLY user's groups (not all public groups)
           const userGroupsResponse = await groupsAPI.getUserGroups();
-          const publicGroupsResponse = await groupsAPI.getPublicGroups();
-          groups = [...(userGroupsResponse.data || []), ...(publicGroupsResponse.data || [])];
-          
-          // Remove duplicates
-          const uniqueGroups = groups.filter((group, index, self) => 
-            index === self.findIndex(g => g._id === group._id)
-          );
-          groups = uniqueGroups;
+          groups = userGroupsResponse.data || [];
         } catch (error) {
           console.warn('Could not load groups from API:', error);
           groups = [];
@@ -515,6 +510,16 @@ const Dashboard: React.FC = () => {
         const realStreakData = await fetchStreakData();
         setStreakData(realStreakData);
         
+        // Fetch user's study stats from backend
+        let totalStudyTime = 0;
+        try {
+          const statsResponse = await usersAPI.getStats();
+          totalStudyTime = Math.floor((statsResponse.data?.totalStudyTime || 0) / 60); // Convert to hours
+        } catch (error) {
+          console.warn('Could not load user stats from API:', error);
+          totalStudyTime = 0;
+        }
+        
         // Calculate real stats
         const groupsArray = Array.isArray(groups) ? groups : [];
         const sessionsArray = Array.isArray(sessions) ? sessions : [];
@@ -526,7 +531,8 @@ const Dashboard: React.FC = () => {
           totalGroups,
           totalSessions,
           onlineUsers,
-          studyStreak: realStreakData.currentStreak
+          studyStreak: realStreakData.currentStreak,
+          totalStudyTime
         });
 
         // Transform groups for live display (real data)
@@ -601,7 +607,8 @@ const Dashboard: React.FC = () => {
           totalGroups: 0,
           totalSessions: 0,
           onlineUsers: 1,
-          studyStreak: 0
+          studyStreak: 0,
+          totalStudyTime: 0
         });
         toast.error('Unable to load some data. Please check your connection.');
       } finally {
@@ -704,83 +711,100 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography color="textSecondary" gutterBottom variant={isMobile ? 'caption' : 'body2'}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
                     Study Groups
                   </Typography>
-                  <Typography variant={isMobile ? 'h5' : 'h4'}>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {stats.totalGroups}
                   </Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: 'primary.main', width: isMobile ? 32 : 40, height: isMobile ? 32 : 40 }}>
-                  <Groups fontSize={isMobile ? 'small' : 'medium'} />
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.3)', width: 56, height: 56 }}>
+                  <Groups sx={{ fontSize: 32 }} />
                 </Avatar>
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography color="textSecondary" gutterBottom variant={isMobile ? 'caption' : 'body2'}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
                     Sessions
                   </Typography>
-                  <Typography variant={isMobile ? 'h5' : 'h4'}>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {stats.totalSessions}
                   </Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: 'secondary.main', width: isMobile ? 32 : 40, height: isMobile ? 32 : 40 }}>
-                  <Schedule fontSize={isMobile ? 'small' : 'medium'} />
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.3)', width: 56, height: 56 }}>
+                  <Schedule sx={{ fontSize: 32 }} />
                 </Avatar>
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography color="textSecondary" gutterBottom variant={isMobile ? 'caption' : 'body2'}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
+                    Study Time
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    {stats.totalStudyTime}h
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.3)', width: 56, height: 56 }}>
+                  <Timer sx={{ fontSize: 32 }} />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={6}>
+          <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
+                    Study Streak
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    {stats.studyStreak} days
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.3)', width: 56, height: 56 }}>
+                  <EmojiEvents sx={{ fontSize: 32 }} />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={6}>
+          <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
                     Online Users
                   </Typography>
-                  <Typography variant={isMobile ? 'h5' : 'h4'} color="success.main">
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {stats.onlineUsers}
                   </Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: 'success.main', width: isMobile ? 32 : 40, height: isMobile ? 32 : 40 }}>
-                  <TrendingUp fontSize={isMobile ? 'small' : 'medium'} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography color="textSecondary" gutterBottom variant={isMobile ? 'caption' : 'body2'}>
-                    Study Streak
-                  </Typography>
-                  <Typography variant={isMobile ? 'h5' : 'h4'} color="warning.main">
-                    {stats.studyStreak}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    days
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'warning.main', width: isMobile ? 32 : 40, height: isMobile ? 32 : 40 }}>
-                  <EmojiEvents fontSize={isMobile ? 'small' : 'medium'} />
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.3)', width: 56, height: 56 }}>
+                  <TrendingUp sx={{ fontSize: 32 }} />
                 </Avatar>
               </Box>
             </CardContent>
@@ -790,20 +814,20 @@ const Dashboard: React.FC = () => {
 
       <Grid container spacing={isMobile ? 2 : 3}>
         {/* Study Streak Calendar */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12} md={6}>
           <Card sx={{ height: 'fit-content' }}>
             <StudyStreakCalendar streakData={streakData} />
           </Card>
         </Grid>
 
         {/* Live Groups */}
-        <Grid item xs={12} md={6} lg={6}>
-          <Card sx={{ height: { md: '400px' } }}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Study Groups
               </Typography>
-              <List sx={{ maxHeight: { md: '320px' }, overflow: 'auto' }}>
+              <List sx={{ maxHeight: '320px', overflow: 'auto' }}>
                 {liveGroups.length > 0 ? liveGroups.map((group) => (
                   <ListItem key={group._id} button onClick={() => navigate(`/groups/${group._id}`)}>
                     <ListItemAvatar>
@@ -858,12 +882,12 @@ const Dashboard: React.FC = () => {
 
         {/* Upcoming Sessions */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: { md: '400px' } }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Upcoming Sessions
               </Typography>
-              <List sx={{ maxHeight: { md: '320px' }, overflow: 'auto' }}>
+              <List sx={{ maxHeight: '320px', overflow: 'auto' }}>
                 {upcomingSessions.length > 0 ? upcomingSessions.map((session) => (
                   <ListItem key={session._id} button onClick={() => navigate(`/sessions/${session._id}`)}>
                     <ListItemAvatar>
@@ -905,7 +929,7 @@ const Dashboard: React.FC = () => {
 
         {/* Quick Actions */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: 'fit-content' }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Quick Actions
@@ -978,13 +1002,13 @@ const Dashboard: React.FC = () => {
 
         {/* Recent Activity */}
         {recentActivity.length > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: 'fit-content' }}>
+          <Grid item xs={12}>
+            <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   Recent Activity
                 </Typography>
-                <List>
+                <List sx={{ maxHeight: '320px', overflow: 'auto' }}>
                   {recentActivity.map((activity) => (
                     <ListItem key={activity.id}>
                       <ListItemAvatar>

@@ -24,8 +24,8 @@ export const getApiBaseUrl = () => {
   
   // Check if hostname is localhost or 127.0.0.1
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    apiUrl = 'http://localhost:5000/api';
-    console.log('📍 Using localhost HTTP API');
+    apiUrl = 'https://localhost:5443/api';
+    console.log('📍 Using localhost HTTPS API');
   } else {
     // Network clients use HTTPS on port 5443 (required for camera/mic access)
     apiUrl = `https://${hostname}:5443/api`;
@@ -295,12 +295,14 @@ export const sessionsAPI = {
 
 // AI API
 export const aiAPI = {
-  sendMessage: (message: string, context?: any) => 
-    api.post('/ai/chat', { message, context }),
-  getStudyHelp: (topic: string, difficulty: string) => 
-    api.post('/ai/study-help', { topic, difficulty }),
-  generateQuiz: (topic: string, questionCount: number) => 
-    api.post('/ai/generate-quiz', { topic, questionCount }),
+  studyAssistant: (message: string, groupId?: string, context?: string) => 
+    api.post('/ai/study-assistant', { message, groupId, context }),
+  generateStudyPlan: (subject: string, duration: number, difficulty: string, goals?: string[]) => 
+    api.post('/ai/study-plan', { subject, duration, difficulty, goals }),
+  explainConcept: (concept: string, subject?: string, level?: string) => 
+    api.post('/ai/explain', { concept, subject, level }),
+  generateQuiz: (topic: string, questionCount: number, difficulty?: string, questionType?: string) => 
+    api.post('/ai/generate-quiz', { topic, questionCount, difficulty, questionType }),
 };
 
 export default api;

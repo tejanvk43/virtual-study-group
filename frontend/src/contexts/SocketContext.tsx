@@ -33,10 +33,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     if (isAuthenticated && user) {
       // Dynamically determine socket URL based on current hostname for network access
       const hostname = window.location.hostname;
-      // localhost uses HTTP:5000, network clients use HTTPS:5443 (required for camera/mic)
-      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-      const socketUrl = process.env.REACT_APP_SOCKET_URL || (isLocalhost ? `http://${hostname}:5000` : `https://${hostname}:5443`);
-      console.log('Connecting to socket:', socketUrl);
+      // Always use HTTPS:5443 for both localhost and network clients (required for camera/mic)
+      const socketUrl = process.env.REACT_APP_SOCKET_URL || `https://${hostname}:5443`;
+      console.log('🔌 Connecting to socket:', socketUrl);
       const newSocket = io(socketUrl, {
         transports: ['websocket', 'polling'],
         upgrade: true,

@@ -101,30 +101,45 @@ const Groups: React.FC = () => {
   ];
 
   useEffect(() => {
+    console.log('📋 [useEffect] User changed or component mounted, loading groups...');
     loadGroups();
-  }, []);
+  }, [user?._id]);
 
   const loadGroups = async () => {
     try {
       setLoading(true);
-      const [publicResponse, myResponse] = await Promise.all([
-        groupsAPI.getPublicGroups(),
-        groupsAPI.getUserGroups(),
-      ]);
+      console.log('📋 [loadGroups] Fetching groups for user:', user?._id);
+      
+      const publicResponse = await groupsAPI.getPublicGroups();
+      console.log('📋 [loadGroups] Public groups response:', publicResponse);
+      
+      const myResponse = await groupsAPI.getUserGroups();
+      console.log('📋 [loadGroups] My groups response:', myResponse);
+      console.log('📋 [loadGroups] My groups response.data:', myResponse.data);
       
       // Handle different response structures
-      const allPublicGroups = publicResponse.data.groups || [];
-      const userGroups = myResponse.data || [];
+      let allPublicGroups = publicResponse.data?.groups || publicResponse.data || [];
+      let userGroups = Array.isArray(myResponse.data) ? myResponse.data : myResponse.data?.groups || [];
       
-      // Filter out groups owned by the current user from public groups
+      // Ensure they're arrays
+      if (!Array.isArray(allPublicGroups)) allPublicGroups = [];
+      if (!Array.isArray(userGroups)) userGroups = [];
+      
+      console.log('📋 [loadGroups] Parsed - All public groups:', allPublicGroups, 'count:', allPublicGroups.length);
+      console.log('📋 [loadGroups] Parsed - User groups:', userGroups, 'count:', userGroups.length);
+      
+      // Filter out groups owned by the current user from public groups (if not already filtered by backend)
       const filteredPublicGroups = allPublicGroups.filter((group: Group) => 
-        group.owner._id !== user?._id
+        group && group.owner && group.owner._id !== user?._id
       );
+      
+      console.log('📋 [loadGroups] Filtered public groups (after owner filter):', filteredPublicGroups);
+      console.log('✅ [loadGroups] Setting state - Public:', filteredPublicGroups.length, 'My:', userGroups.length);
       
       setPublicGroups(filteredPublicGroups);
       setMyGroups(userGroups);
     } catch (error) {
-      console.error('Error loading groups:', error);
+      console.error('❌ Error loading groups:', error);
       toast.error('Failed to load groups');
       // Set empty arrays as fallback
       setPublicGroups([]);

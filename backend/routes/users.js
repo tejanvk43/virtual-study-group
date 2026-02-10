@@ -157,7 +157,25 @@ router.get('/activity', auth, async (req, res) => {
   }
 });
 
-// Get user profile
+// Get current user's profile
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('groups', 'name subject privacy')
+      .select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ message: 'Server error fetching profile' });
+  }
+});
+
+// Get user profile by ID
 router.get('/profile/:userId', auth, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -216,7 +234,11 @@ router.put('/profile', auth, [
 // Get user's study statistics
 router.get('/stats', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('studyStats');
+    const user = await User.findById(req.user._id).select('studyStats createdAt');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     
     // Calculate additional stats
     const totalGroups = await Group.countDocuments({
@@ -229,8 +251,16 @@ router.get('/stats', auth, async (req, res) => {
       isActive: true
     });
 
+    // Ensure studyStats exists with defaults
+    const studyStats = user.studyStats || {
+      totalStudyTime: 0,
+      sessionsCompleted: 0,
+      streak: 0,
+      achievements: []
+    };
+
     const stats = {
-      ...user.studyStats.toObject(),
+      ...studyStats.toObject?.() || studyStats,
       totalGroups,
       ownedGroups,
       joinDate: user.createdAt

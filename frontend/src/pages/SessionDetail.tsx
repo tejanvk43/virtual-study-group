@@ -88,6 +88,12 @@ const SessionDetail: React.FC = () => {
   const socketRef = useRef<typeof socket>(socket); // Ref to avoid stale socket closure in streaming
   const sessionIdRef = useRef<string | undefined>(id);
   const userIdRef = useRef<string | undefined>(user?._id);
+  
+  // Audio processing refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const remoteAudioContextRefs = useRef<Map<string, AudioContext>>(new Map());
+  const remoteAudioProcessorRefs = useRef<Map<string, ScriptProcessorNode>>(new Map());
 
   // Keep refs in sync with latest values
   useEffect(() => { socketRef.current = socket; }, [socket]);
@@ -377,10 +383,28 @@ const SessionDetail: React.FC = () => {
       }
     });
 
-    // Handle incoming audio chunks
+    // Handle incoming audio chunks from remote participants
     socket.on('audio-chunk', ({ from, audioData }: { from: string; audioData: ArrayBuffer }) => {
-      // Audio handling can be implemented if needed
-      // For now, we'll rely on video stream audio
+      try {
+        // Create or get audio context for this participant
+        let remoteAudioCtx = remoteAudioContextRefs.current.get(from);
+        if (!remoteAudioCtx) {
+          remoteAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          remoteAudioContextRefs.current.set(from, remoteAudioCtx);
+        }
+
+        // Decode and play audio
+        remoteAudioCtx.decodeAudioData(audioData, (buffer) => {
+          const source = remoteAudioCtx!.createBufferSource();
+          source.buffer = buffer;
+          source.connect(remoteAudioCtx!.destination);
+          source.start(0);
+        }, (err) => {
+          console.error('❌ Audio decode error:', err);
+        });
+      } catch (err) {
+        console.error('❌ Audio chunk error:', err);
+      }
     });
 
     // Chat messages
@@ -647,6 +671,89 @@ const SessionDetail: React.FC = () => {
     });
     
     console.log('✅ [startVideoStreaming] Initialization complete, waiting for video ready...');
+    
+    // Start audio processing if available
+    if (currentStream && currentStream.getAudioTracks().length > 0) {
+      startAudioProcessing(currentStream);
+    }
+  };
+
+  // Start audio processing and sending audio chunks
+  const startAudioProcessing = (stream: MediaStream) => {
+    try {
+      console.log('🎙️ [startAudioProcessing] Starting audio processing...');
+      
+      // Create audio context
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      
+      const source = audioCtx.createMediaStreamSource(stream);
+      
+      // Create a script processor to capture audio samples
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      audioProcessorRef.current = processor;
+      
+      processor.onaudioprocess = (event) => {
+        const audioData = event.inputBuffer.getChannelData(0);
+        
+        // Convert to WAV format (simplified)
+        const wav = encodeWAV(audioData, audioCtx.sampleRate);
+        
+        // Send audio chunk via socket
+        const socket = socketRef.current;
+        const sessionId = sessionIdRef.current;
+        if (socket && socket.connected && sessionId) {
+          socket.emit('audio-chunk', {
+            sessionId,
+            audioData: wav,
+            userId: userIdRef.current
+          });
+        }
+      };
+      
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+      
+      console.log('✅ [startAudioProcessing] Audio processing started');
+    } catch (err) {
+      console.error('❌ [startAudioProcessing] Error:', err);
+    }
+  };
+
+  // Simple WAV encoding for audio chunks
+  const encodeWAV = (samples: Float32Array, sampleRate: number): ArrayBuffer => {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    
+    // PCM data
+    let index = 44;
+    for (let i = 0; i < samples.length; i++) {
+      view.setInt16(index, samples[i] < 0 ? samples[i] * 0x8000 : samples[i] * 0x7FFF, true);
+      index += 2;
+    }
+    
+    return buffer;
   };
 
   // Stop video streaming
@@ -655,6 +762,26 @@ const SessionDetail: React.FC = () => {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+    
+    // Stop audio processing
+    if (audioProcessorRef.current) {
+      audioProcessorRef.current.disconnect();
+      audioProcessorRef.current = null;
+    }
+    
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    // Clean up remote audio contexts
+    remoteAudioContextRefs.current.forEach(ctx => {
+      if (ctx.state !== 'closed') {
+        ctx.close();
+      }
+    });
+    remoteAudioContextRefs.current.clear();
+    remoteAudioProcessorRefs.current.clear();
   };
 
   const initializeMedia = async () => {

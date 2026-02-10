@@ -64,6 +64,7 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { aiAPI } from '../services/api';
 
 interface ChatMessage {
   id: string;
@@ -194,64 +195,116 @@ const AIAssistant: React.FC = () => {
     }, 100);
   };
 
-  const generateAIResponse = async (userMessage: string): Promise<string> => {
+  const handleExplainConcept = async (concept: string) => {
+    if (!concept.trim()) {
+      toast.error('Please enter a concept to explain');
+      return;
+    }
+
+    setLoading(true);
     try {
-      // Call the actual AI API endpoint
-      const authStorage = localStorage.getItem('auth-storage');
-      let token = '';
-      if (authStorage) {
-        try {
-          const parsedAuth = JSON.parse(authStorage);
-          token = parsedAuth.state?.token || '';
-        } catch (error) {
-          console.error('Error parsing auth token:', error);
-        }
-      }
-
-      // Try to get a group ID from context or use a default
-      // Use dynamic API URL for network access
-      const { getApiBaseUrl } = await import('../services/api');
-      const apiBaseUrl = getApiBaseUrl();
+      console.log('💡 Requesting explanation for:', concept);
+      const response = await aiAPI.explainConcept(concept, undefined, 'high');
       
-      const response = await fetch(`${apiBaseUrl}/ai/study-assistant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          groupId: 'default', // This should be replaced with actual group context
-          context: ''
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.response || "I'm here to help! Could you provide more details about what you'd like to learn?";
+      console.log('✅ Explanation received:', response.data);
+      
+      const explanationMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: response.data.explanation || 'Unable to generate explanation',
+        role: 'assistant',
+        timestamp: new Date(),
+        type: 'explanation',
+      };
+      
+      setMessages(prev => [...prev, explanationMessage]);
+      toast.success('Explanation generated!');
+    } catch (error: any) {
+      console.error('❌ Error generating explanation:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || '';
+      if (errorMsg.includes('QUOTA_EXHAUSTED') || errorMsg.includes('429') || errorMsg.includes('quota')) {
+        toast.error('AI daily quota exhausted. Resets tomorrow or use a new API key.');
       } else {
-        // Fallback if AI service is unavailable
-        return "I'm currently processing your request. Please provide more details about what you'd like to learn, and I'll help you understand it better.";
+        toast.error(`Explanation failed: ${errorMsg || 'Unknown error'}`);
       }
-    } catch (error) {
-      console.error('AI API error:', error);
-      return "I'm here to help with your studies! Could you provide more details about what you'd like to learn?";
+    } finally {
+      setLoading(false);
+      setExplanationDialogOpen(false);
+      setSelectedTopic('');
     }
   };
 
-  const handleGenerateQuiz = () => {
-    // In a real implementation, this would call an AI API to generate questions
-    // For now, showing a placeholder message
-    const quizMessage: ChatMessage = {
-      id: Date.now().toString(),
-      content: `Quiz generation for "${selectedTopic || 'General Knowledge'}" is not yet implemented. This would integrate with an AI service to generate custom questions based on your study topics.`,
-      role: 'assistant',
-      timestamp: new Date(),
-      type: 'text',
-    };
-    
-    setMessages(prev => [...prev, quizMessage]);
-    setQuizDialogOpen(false);
+  const generateAIResponse = async (userMessage: string): Promise<string> => {
+    try {
+      console.log('🤖 Sending message to AI:', userMessage);
+      const response = await aiAPI.studyAssistant(userMessage, 'default', 'Personal study session with AI assistant');
+      
+      console.log('✅ AI response received:', response.data);
+      
+      return response.data.response || "I'm here to help! Could you provide more details about what you'd like to learn?";
+    } catch (error: any) {
+      console.error('❌ AI API error:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || '';
+      
+      if (errorMsg.includes('QUOTA_EXHAUSTED') || errorMsg.includes('429') || errorMsg.includes('quota')) {
+        return "⚠️ The AI service has reached its daily free-tier usage limit. The quota resets tomorrow. To fix this immediately, you can:\n\n1. Get a new Gemini API key from https://ai.google.dev\n2. Or upgrade to a paid plan for higher limits\n\nPlease update the GEMINI_API_KEY in the backend .env file.";
+      }
+      if (error.response?.status === 503) {
+        return "⚠️ AI service is not configured. Please add a GEMINI_API_KEY to the backend .env file.";
+      }
+      if (error.response?.status === 401) {
+        return "⚠️ Authentication error. Please log in again.";
+      }
+      
+      return `⚠️ AI service error: ${errorMsg || 'Unknown error'}. Please try again later.`;
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!selectedTopic.trim()) {
+      toast.error('Please enter a topic for the quiz');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('📝 Generating quiz for topic:', selectedTopic);
+      const response = await aiAPI.generateQuiz(selectedTopic, 5, 'medium', 'multiple-choice');
+      
+      console.log('✅ Quiz response received:', response.data);
+      
+      // Handle both response structures: { questions: [...] } or { questions: [...], ... }
+      const questions = response.data.questions || response.data;
+      
+      if (!questions || !Array.isArray(questions)) {
+        console.error('❌ Invalid quiz response structure:', response.data);
+        toast.error('Invalid quiz format received from server');
+        return;
+      }
+
+      const quizMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: 'Here are your quiz questions:',
+        role: 'assistant',
+        timestamp: new Date(),
+        type: 'quiz',
+        metadata: { topic: selectedTopic, questions: questions }
+      };
+      
+      setMessages(prev => [...prev, quizMessage]);
+      toast.success('Quiz generated successfully!');
+    } catch (error: any) {
+      console.error('❌ Error generating quiz:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || '';
+      if (errorMsg.includes('QUOTA_EXHAUSTED') || errorMsg.includes('429') || errorMsg.includes('quota')) {
+        toast.error('AI daily quota exhausted. Resets tomorrow or use a new API key.');
+      } else {
+        toast.error(`Quiz generation failed: ${errorMsg || 'Unknown error'}`);
+      }
+    } finally {
+      setLoading(false);
+      setQuizDialogOpen(false);
+      setSelectedTopic('');
+    }
   };
 
   const handleStartStudyCall = async () => {
@@ -372,12 +425,12 @@ const AIAssistant: React.FC = () => {
         </Box>
       </Paper>
 
-      <Box sx={{ flex: 1, display: 'flex' }}>
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Main Chat Area */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
           {/* Messages */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-            <List>
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column' }}>
+            <List sx={{ width: '100%' }}>
               {messages.map((msg) => (
                 <ListItem 
                   key={msg.id} 
@@ -415,7 +468,7 @@ const AIAssistant: React.FC = () => {
                         <Typography variant="h6" gutterBottom color="primary">
                           Quiz: {msg.metadata.topic}
                         </Typography>
-                        {msg.metadata.questions.map((q: any, index: number) => (
+                        {msg.metadata.questions && msg.metadata.questions.map((q: any, index: number) => (
                           <Accordion key={index}>
                             <AccordionSummary expandIcon={<ExpandMore />}>
                               <Typography variant="subtitle1">
@@ -424,17 +477,22 @@ const AIAssistant: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                               <Box>
-                                {q.options.map((option: string, optIndex: number) => (
+                                {q.options && q.options.map((option: string, optIndex: number) => (
                                   <Button
                                     key={optIndex}
-                                    variant={optIndex === q.correct ? "contained" : "outlined"}
-                                    color={optIndex === q.correct ? "success" : "inherit"}
+                                    variant={option === q.correct_answer ? "contained" : "outlined"}
+                                    color={option === q.correct_answer ? "success" : "inherit"}
                                     fullWidth
-                                    sx={{ mb: 1, justifyContent: 'flex-start' }}
+                                    sx={{ mb: 1, justifyContent: 'flex-start', textAlign: 'left' }}
                                   >
                                     {option}
                                   </Button>
                                 ))}
+                                {q.explanation && (
+                                  <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block' }}>
+                                    <strong>Explanation:</strong> {q.explanation}
+                                  </Typography>
+                                )}
                               </Box>
                             </AccordionDetails>
                           </Accordion>
@@ -497,6 +555,19 @@ const AIAssistant: React.FC = () => {
               
               <div ref={messagesEndRef} />
             </List>
+            
+            {/* Empty State Message */}
+            {messages.length === 0 && !loading && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }}>
+                <SmartToy sx={{ fontSize: 80, color: 'primary.main', mb: 2, opacity: 0.5 }} />
+                <Typography variant="h6" gutterBottom>
+                  Welcome to AI Study Assistant
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center">
+                  Ask me questions about any topic, or use the quick actions on the right to get started.
+                </Typography>
+              </Box>
+            )}
           </Box>
 
           {/* Message Input */}
@@ -506,11 +577,12 @@ const AIAssistant: React.FC = () => {
               p: 2, 
               borderRadius: 0,
               borderTop: 1,
-              borderColor: 'divider'
+              borderColor: 'divider',
+              flexShrink: 0
             }}
           >
-            <Box component="form" id="message-form" onSubmit={handleSendMessage} display="flex" gap={1}>
-              <IconButton size="small">
+            <Box component="form" id="message-form" onSubmit={handleSendMessage} display="flex" gap={1} alignItems="flex-end">
+              <IconButton size="small" disabled>
                 <AttachFile />
               </IconButton>
               <TextField
@@ -524,7 +596,7 @@ const AIAssistant: React.FC = () => {
                 maxRows={3}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
               />
-              <IconButton size="small">
+              <IconButton size="small" disabled>
                 <VolumeUp />
               </IconButton>
               <IconButton 
@@ -727,8 +799,12 @@ const AIAssistant: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setQuizDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleGenerateQuiz} variant="contained">
-            Generate Quiz
+          <Button 
+            onClick={handleGenerateQuiz} 
+            variant="contained"
+            disabled={loading || !selectedTopic.trim()}
+          >
+            {loading ? 'Generating...' : 'Generate Quiz'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -752,14 +828,11 @@ const AIAssistant: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setExplanationDialogOpen(false)}>Cancel</Button>
           <Button 
-            onClick={() => {
-              handleQuickPrompt(`Please explain: ${selectedTopic}`);
-              setExplanationDialogOpen(false);
-              setSelectedTopic('');
-            }} 
+            onClick={() => handleExplainConcept(selectedTopic)} 
             variant="contained"
+            disabled={loading}
           >
-            Get Explanation
+            {loading ? 'Generating...' : 'Get Explanation'}
           </Button>
         </DialogActions>
       </Dialog>

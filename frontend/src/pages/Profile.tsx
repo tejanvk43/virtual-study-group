@@ -78,19 +78,20 @@ const Profile: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [fetchedUser, setFetchedUser] = useState<any>(null);
   
   const { user, updateProfile } = useAuthStore();
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ProfileForm>({
     defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      bio: user?.bio || '',
-      location: user?.location || '',
-      phone: user?.phone || '',
-      birthDate: user?.birthDate || '',
-      website: user?.website || '',
-      interests: user?.interests || [],
+      firstName: fetchedUser?.firstName || user?.firstName || '',
+      lastName: fetchedUser?.lastName || user?.lastName || '',
+      email: fetchedUser?.email || user?.email || '',
+      bio: fetchedUser?.bio || user?.bio || '',
+      location: fetchedUser?.location || user?.location || '',
+      phone: fetchedUser?.phone || user?.phone || '',
+      birthDate: fetchedUser?.birthDate || user?.birthDate || '',
+      website: fetchedUser?.website || user?.website || '',
+      interests: fetchedUser?.interests || user?.interests || [],
     }
   });
 
@@ -117,16 +118,34 @@ const Profile: React.FC = () => {
       try {
         setLoading(true);
         
+        // Fetch full user profile including bio and other details
+        const profileResponse = await usersAPI.getProfile();
+        const profileData = profileResponse.data;
+        setFetchedUser(profileData);
+        
+        // Update form with fetched data
+        reset({
+          firstName: profileData?.firstName || '',
+          lastName: profileData?.lastName || '',
+          email: profileData?.email || '',
+          bio: profileData?.bio || '',
+          location: profileData?.location || '',
+          phone: profileData?.phone || '',
+          birthDate: profileData?.birthDate || '',
+          website: profileData?.website || '',
+          interests: profileData?.interests || [],
+        });
+        
         // Load user stats
         const statsResponse = await usersAPI.getStats();
         const stats = statsResponse.data;
         
         setUserStats({
-          totalStudyTime: Math.floor(stats.totalStudyTime / 60), // Convert minutes to hours
+          totalStudyTime: Math.floor((stats.totalStudyTime || 0) / 60), // Convert minutes to hours
           sessionsAttended: stats.sessionsCompleted || 0,
           groupsJoined: stats.totalGroups || 0,
           streakDays: stats.streak || 0,
-          pointsEarned: stats.totalStudyTime * 10, // 10 points per minute studied
+          pointsEarned: (stats.totalStudyTime || 0) * 10, // 10 points per minute studied
           level: Math.floor((stats.totalStudyTime || 0) / 60) + 1, // Level up every hour
           progressToNext: ((stats.totalStudyTime || 0) % 60) / 60 * 100, // Progress to next level
         });
@@ -148,7 +167,7 @@ const Profile: React.FC = () => {
     };
 
     loadUserData();
-  }, []);
+  }, [reset]);
 
   const [settings, setSettings] = useState({
     notifications: {
@@ -249,17 +268,17 @@ const Profile: React.FC = () => {
                   bgcolor: 'primary.main'
                 }}
               >
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                {(fetchedUser?.firstName || user?.firstName)?.[0]}{(fetchedUser?.lastName || user?.lastName)?.[0]}
               </Avatar>
             </Badge>
           </Grid>
           
           <Grid item xs>
             <Typography variant="h4" gutterBottom>
-              {user?.firstName} {user?.lastName}
+              {fetchedUser?.firstName || user?.firstName} {fetchedUser?.lastName || user?.lastName}
             </Typography>
             <Typography variant="body1" color="text.secondary" paragraph>
-              {user?.bio || 'No bio added yet'}
+              {fetchedUser?.bio || user?.bio || 'No bio added yet'}
             </Typography>
             
             <Box display="flex" gap={2} alignItems="center">
