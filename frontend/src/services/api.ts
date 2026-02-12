@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+const HTTPS_PORT = 5443;
+const HTTP_REDIRECT_PORT = 5000;
+
 // Dynamically determine API URL based on current hostname for network access
 export const getApiBaseUrl = () => {
   if (process.env.REACT_APP_API_URL) {
@@ -24,11 +27,11 @@ export const getApiBaseUrl = () => {
   
   // Check if hostname is localhost or 127.0.0.1
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    apiUrl = 'https://localhost:5443/api';
+    apiUrl = `https://localhost:${HTTPS_PORT}/api`;
     console.log('📍 Using localhost HTTPS API');
   } else {
     // Network clients use HTTPS on port 5443 (required for camera/mic access)
-    apiUrl = `https://${hostname}:5443/api`;
+    apiUrl = `https://${hostname}:${HTTPS_PORT}/api`;
     console.log('🌐 Using network HTTPS API URL:', apiUrl);
   }
   
@@ -156,14 +159,15 @@ api.interceptors.response.use(
       console.error('- Trying to connect to:', currentApiUrl);
       console.error('- Current hostname:', currentHostname);
       console.error('- Current origin:', window.location.origin);
-      console.error('- Make sure backend is running on port 5000');
-      console.error('- Check Windows Firewall allows port 5000');
+      console.error(`- Make sure backend is running on port ${HTTPS_PORT}`);
+      console.error(`- Check Windows Firewall allows port ${HTTPS_PORT}`);
       console.error('- Verify both devices are on the same network');
       console.error('- Note: Backend uses HTTPS with self-signed certificates');
-      console.error('- Test backend directly: https://' + currentHostname + ':5000/api/test-network');
+      console.error(`- Test backend directly: https://${currentHostname}:${HTTPS_PORT}/api/test-network`);
+      console.error(`- Optional HTTP redirect: http://${currentHostname}:${HTTP_REDIRECT_PORT}`);
       console.error('- (Ignore browser certificate warnings for self-signed certs)');
       
-      const networkError = new Error(`Cannot connect to server at ${currentApiUrl}. Please check:\n1. Backend is running on port 5000\n2. Windows Firewall allows port 5000\n3. Both devices are on the same network\n4. Backend uses HTTPS (https://${currentHostname}:5000)\n5. Test: https://${currentHostname}:5000/api/test-network`);
+      const networkError = new Error(`Cannot connect to server at ${currentApiUrl}. Please check:\n1. Backend is running on port ${HTTPS_PORT}\n2. Windows Firewall allows port ${HTTPS_PORT}\n3. Both devices are on the same network\n4. Backend uses HTTPS (https://${currentHostname}:${HTTPS_PORT})\n5. Test: https://${currentHostname}:${HTTPS_PORT}/api/test-network`);
       (networkError as any).isNetworkError = true;
       (networkError as any).originalError = error;
       (networkError as any).apiUrl = currentApiUrl;
@@ -291,18 +295,6 @@ export const sessionsAPI = {
   deleteSession: (sessionId: string) => api.delete(`/study-sessions/${sessionId}`),
   joinSession: (sessionId: string) => api.post(`/study-sessions/${sessionId}/join`),
   leaveSession: (sessionId: string) => api.post(`/study-sessions/${sessionId}/leave`),
-};
-
-// AI API
-export const aiAPI = {
-  studyAssistant: (message: string, groupId?: string, context?: string) => 
-    api.post('/ai/study-assistant', { message, groupId, context }),
-  generateStudyPlan: (subject: string, duration: number, difficulty: string, goals?: string[]) => 
-    api.post('/ai/study-plan', { subject, duration, difficulty, goals }),
-  explainConcept: (concept: string, subject?: string, level?: string) => 
-    api.post('/ai/explain', { concept, subject, level }),
-  generateQuiz: (topic: string, questionCount: number, difficulty?: string, questionType?: string) => 
-    api.post('/ai/generate-quiz', { topic, questionCount, difficulty, questionType }),
 };
 
 export default api;

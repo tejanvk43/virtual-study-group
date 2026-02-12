@@ -85,7 +85,8 @@ router.post('/personal', auth, [
   body('title').notEmpty().trim().escape(),
   body('startTime').isISO8601(),
   body('endTime').isISO8601(),
-  body('description').optional().trim().escape()
+  body('description').optional().trim().escape(),
+  body('inviteeIds').optional().isArray()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -93,7 +94,7 @@ router.post('/personal', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, startTime, endTime, isRecurring } = req.body;
+    const { title, description, startTime, endTime, inviteeIds } = req.body;
 
     const session = new StudySession({
       title,
@@ -103,7 +104,8 @@ router.post('/personal', auth, [
       scheduledEnd: new Date(endTime),
       type: 'study',
       agenda: [],
-      status: 'live' // Start personal sessions immediately
+      status: 'live', // Start personal sessions immediately
+      invitedUsers: Array.isArray(inviteeIds) ? inviteeIds : []
     });
 
     await session.save();
@@ -230,7 +232,8 @@ router.get('/my-sessions', auth, async (req, res) => {
     let query = {
       $or: [
         { host: req.user._id },
-        { 'participants.user': req.user._id }
+        { 'participants.user': req.user._id },
+        { invitedUsers: req.user._id }
       ]
     };
 
@@ -258,11 +261,17 @@ router.get('/:sessionId', auth, async (req, res) => {
     const session = await StudySession.findById(sessionId)
       .populate('host', 'username firstName lastName avatar')
       .populate('group', 'name subject members')
-      .populate('participants.user', 'username firstName lastName avatar');
+      .populate('participants.user', 'username firstName lastName avatar')
+      .populate('invitedUsers', 'username firstName lastName avatar');
 
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
     }
+
+    const isHost = session.host._id.toString() === req.user._id.toString();
+    const isInvited = (session.invitedUsers || []).some(u =>
+      u && u._id ? u._id.toString() === req.user._id.toString() : u.toString() === req.user._id.toString()
+    );
 
     // If session has a group, check if user is a member
     if (session.group) {
@@ -270,12 +279,12 @@ router.get('/:sessionId', auth, async (req, res) => {
         member.user && member.user.toString() === req.user._id.toString()
       );
 
-      if (!isMember) {
+      if (!isMember && !isHost && !isInvited) {
         return res.status(403).json({ message: 'Access denied' });
       }
     } else {
-      // Personal session - only host can access
-      if (session.host._id.toString() !== req.user._id.toString()) {
+      // Personal session - host or invited users can access
+      if (!isHost && !isInvited) {
         return res.status(403).json({ message: 'Access denied' });
       }
     }
@@ -297,8 +306,11 @@ router.post('/:sessionId/join', auth, async (req, res) => {
       return res.status(404).json({ message: 'Session not found' });
     }
 
+    const isHost = session.host.toString() === req.user._id.toString();
+    const isInvited = (session.invitedUsers || []).some(u => u.toString() === req.user._id.toString());
+
     // Check if user is the host or already a participant
-    if (session.host.toString() === req.user._id.toString()) {
+    if (isHost) {
       return res.status(400).json({ message: 'You are the host of this session' });
     }
     
@@ -308,6 +320,25 @@ router.post('/:sessionId/join', auth, async (req, res) => {
 
     if (isParticipant) {
       return res.status(400).json({ message: 'Already joined this session' });
+    }
+
+    if (session.group) {
+      const group = await Group.findById(session.group);
+      if (!group) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+
+      const isMember = group.members.some(member => 
+        member.user.toString() === req.user._id.toString()
+      );
+
+      if (!isMember && !isInvited) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    } else {
+      if (!isInvited) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
 
     // Add user as participant
@@ -323,6 +354,56 @@ router.post('/:sessionId/join', auth, async (req, res) => {
   } catch (error) {
     console.error('Join session error:', error);
     res.status(500).json({ message: 'Server error joining session' });
+  }
+});
+
+// Invite users to a session
+router.post('/:sessionId/invite', auth, [
+  body('userIds').isArray({ min: 1 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { sessionId } = req.params;
+    const { userIds } = req.body;
+
+    const session = await StudySession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    if (session.host.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the host can invite users' });
+    }
+
+    const existing = new Set((session.invitedUsers || []).map(id => id.toString()));
+    const uniqueIds = Array.from(new Set(userIds || []))
+      .filter(id => id && id.toString() !== session.host.toString());
+
+    uniqueIds.forEach(id => existing.add(id.toString()));
+    session.invitedUsers = Array.from(existing);
+
+    await session.save();
+    await session.populate('invitedUsers', 'username firstName lastName avatar');
+
+    const io = req.app.get('io');
+    if (io) {
+      uniqueIds.forEach(id => {
+        io.to(`user-${id}`).emit('session-invited', {
+          sessionId: session._id,
+          title: session.title,
+          host: session.host
+        });
+      });
+    }
+
+    res.json({ message: 'Users invited', invitedUsers: session.invitedUsers });
+  } catch (error) {
+    console.error('Invite users error:', error);
+    res.status(500).json({ message: 'Server error inviting users' });
   }
 });
 

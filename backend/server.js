@@ -14,7 +14,6 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const groupRoutes = require('./routes/groups');
 const chatRoutes = require('./routes/chat');
-const aiRoutes = require('./routes/ai');
 const sessionRoutes = require('./routes/sessions');
 
 const app = express();
@@ -124,7 +123,7 @@ app.get('/api', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Virtual Study Group API',
-    endpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/ai', '/api/study-sessions'],
+    endpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/study-sessions'],
     clientIp: req.ip || req.connection.remoteAddress
   });
 });
@@ -149,7 +148,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/study-sessions', sessionRoutes);
 
 // Socket.IO connection handling
@@ -558,12 +556,12 @@ app.use((req, res) => {
   res.status(404).json({ 
     error: 'Not Found', 
     message: `Route ${req.method} ${req.url} not found`,
-    availableEndpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/ai', '/api/study-sessions']
+    availableEndpoints: ['/api/auth', '/api/users', '/api/groups', '/api/chat', '/api/study-sessions']
   });
 });
 
-const PORT = 5443;
-const HTTP_PORT = 5000;
+const PORT = Number(process.env.HTTPS_PORT || process.env.PORT || 5443);
+const HTTP_PORT = Number(process.env.HTTP_PORT || 5000);
 const HOST = '0.0.0.0'; // Listen on all network interfaces
 
 // Start HTTPS server (primary)

@@ -11,7 +11,6 @@ import GroupDetail from './pages/GroupDetail';
 import StudySessions from './pages/StudySessions';
 import SessionDetail from './pages/SessionDetail';
 import Profile from './pages/Profile';
-import AIAssistant from './pages/AIAssistant';
 import { SocketProvider } from './contexts/SocketContext';
 
 function App() {
@@ -77,7 +76,6 @@ function App() {
               <Route path="/sessions" element={<StudySessions />} />
               <Route path="/sessions/:id" element={<SessionDetail />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/ai-assistant" element={<AIAssistant />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Box>

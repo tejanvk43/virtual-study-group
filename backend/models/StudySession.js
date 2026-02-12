@@ -50,6 +50,10 @@ const studySessionSchema = new mongoose.Schema({
     leftAt: Date,
     duration: Number // in minutes
   }],
+  invitedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   agenda: [{
     topic: String,
     duration: Number, // in minutes

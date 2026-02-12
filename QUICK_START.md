@@ -24,14 +24,14 @@ PORT=5443
 MONGODB_URI=mongodb://localhost:27017/study-group
 JWT_SECRET=your-secret-key-here
 CLIENT_URL=https://localhost:3000
-GEMINI_API_KEY=your-gemini-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-**Getting a Gemini API Key:**
-1. Go to https://ai.google.dev
-2. Click "Get API Key" 
-3. Create a new project or use existing
-4. Copy the API key and paste it in `.env` as `GEMINI_API_KEY=`
+**Getting an OpenAI API Key:**
+1. Go to https://platform.openai.com/api-keys
+2. Create a new API key
+3. Copy the API key and paste it in `.env` as `OPENAI_API_KEY=`
 
 ### Install Backend
 ```
@@ -88,7 +88,7 @@ npm run client
 https://localhost:3000
 ```
 
-Browser will warn about certificate (normal) - click Advanced → Proceed
+Browser will warn about certificate (normal) - click Advanced -> Proceed
 
 ## Step 7: Add Test Data (Optional)
 
@@ -108,7 +108,7 @@ The app should now be running. You can:
 - Schedule sessions
 - Join a session and test video/microphone
 - Chat with others
-- **Use AI features** (with Gemini API):
+- **Use AI features** (with OpenAI API):
   - Chat with AI Study Assistant
   - Generate quizzes on any topic
   - Get concept explanations
@@ -116,11 +116,10 @@ The app should now be running. You can:
 
 ## Quick Fixes
 
-**AI service shows "quota exhausted"?**
-- Free tier Gemini API has a daily limit
-- Either: Wait until midnight Pacific time for reset
-- Or: Get a new key from https://ai.google.dev
-- Or: Add billing to your Google account for higher limits at https://ai.google.dev/pricing
+**AI service shows "rate limit" or "insufficient_quota"?**
+- Check your OpenAI usage and billing limits in the OpenAI dashboard
+- Make sure your API key is active and has access to the selected model
+- You can set a smaller/cheaper model in `.env` via `OPENAI_MODEL`
 
 **Port already in use?**
 ```

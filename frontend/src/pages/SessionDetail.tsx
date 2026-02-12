@@ -17,6 +17,12 @@ import {
   InputAdornment,
   Tooltip,
   Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  ListItemText,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -38,6 +44,7 @@ import {
   PushPin,
   VolumeUp,
   VolumeOff,
+  PersonAdd,
 } from '@mui/icons-material';
 import { useAuthStore } from '../stores/authStore';
 import { useSocket } from '../contexts/SocketContext';
@@ -58,6 +65,11 @@ const SessionDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState('');
+  const [inviteResults, setInviteResults] = useState<any[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [invitingIds, setInvitingIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -961,6 +973,117 @@ const SessionDetail: React.FC = () => {
     }
   };
 
+  const getAuthToken = () => {
+    const authStorage = localStorage.getItem('auth-storage');
+    if (!authStorage) return '';
+    try {
+      const parsedAuth = JSON.parse(authStorage);
+      return parsedAuth.state?.token || '';
+    } catch (error) {
+      console.error('Error parsing auth token:', error);
+      return '';
+    }
+  };
+
+  const isHost = session?.host?._id === user?._id;
+  const isInvitedUser = (userId: string) =>
+    (session?.invitedUsers || []).some((u: any) => u?._id === userId);
+  const isParticipantUser = (userId: string) =>
+    (session?.participants || []).some((p: any) => p?.user?._id === userId) || session?.host?._id === userId;
+
+  useEffect(() => {
+    if (!inviteDialogOpen) return;
+    const query = inviteQuery.trim();
+    if (query.length < 2) {
+      setInviteResults([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      try {
+        setInviteLoading(true);
+        const token = getAuthToken();
+        const { getApiBaseUrl } = await import('../services/api');
+        const apiBaseUrl = getApiBaseUrl();
+
+        const response = await fetch(`${apiBaseUrl}/users/search?q=${encodeURIComponent(query)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to search users');
+        }
+
+        const results = await response.json();
+        setInviteResults(Array.isArray(results) ? results : []);
+      } catch (error) {
+        console.error('Error searching users:', error);
+        setInviteResults([]);
+      } finally {
+        setInviteLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [inviteQuery, inviteDialogOpen]);
+
+  const handleInviteUser = async (userId: string) => {
+    if (!id) return;
+    if (isInvitedUser(userId) || isParticipantUser(userId)) return;
+
+    try {
+      setInvitingIds(prev => new Set(prev).add(userId));
+      const token = getAuthToken();
+      const { getApiBaseUrl } = await import('../services/api');
+      const apiBaseUrl = getApiBaseUrl();
+
+      const response = await fetch(`${apiBaseUrl}/study-sessions/${id}/invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userIds: [userId] })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Invite error:', errorText);
+        throw new Error('Failed to invite user');
+      }
+
+      const data = await response.json();
+      setSession((prev: any) => ({
+        ...prev,
+        invitedUsers: data.invitedUsers || prev?.invitedUsers || []
+      }));
+      toast.success('User invited');
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      toast.error('Failed to invite user');
+    } finally {
+      setInvitingIds(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!id) return;
+    try {
+      const link = `${window.location.origin}/sessions/${id}`;
+      await navigator.clipboard.writeText(link);
+      toast.success('Invite link copied');
+    } catch (error) {
+      console.error('Error copying invite link:', error);
+      toast.error('Failed to copy invite link');
+    }
+  };
+
   const handleEndCall = async () => {
     const isHost = session?.host?._id === user?._id;
     
@@ -1731,6 +1854,25 @@ const SessionDetail: React.FC = () => {
               <Settings />
             </IconButton>
           </Tooltip>
+
+          {isHost && (
+            <Tooltip title="Invite users">
+              <IconButton
+                size="large"
+                onClick={() => setInviteDialogOpen(true)}
+                sx={{
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
+                  '&:hover': { bgcolor: 'action.selected' },
+                  width: 64,
+                  height: 64,
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <PersonAdd />
+              </IconButton>
+            </Tooltip>
+          )}
           
           {/* End Call */}
           <Tooltip title="End Call">
@@ -1764,6 +1906,102 @@ const SessionDetail: React.FC = () => {
           </Typography>
         </Box>
       </Paper>
+
+      {/* Invite Users Dialog */}
+      <Dialog
+        open={inviteDialogOpen}
+        onClose={() => {
+          setInviteDialogOpen(false);
+          setInviteQuery('');
+          setInviteResults([]);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Invite Users</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Search by name or username"
+            value={inviteQuery}
+            onChange={(e) => setInviteQuery(e.target.value)}
+            margin="normal"
+            placeholder="Type at least 2 characters..."
+          />
+          <Box display="flex" justifyContent="flex-end" mt={1}>
+            <Button size="small" onClick={handleCopyInviteLink}>
+              Copy invite link
+            </Button>
+          </Box>
+
+          {inviteLoading && (
+            <Box display="flex" justifyContent="center" py={2}>
+              <CircularProgress size={24} />
+            </Box>
+          )}
+
+          {!inviteLoading && inviteResults.length === 0 && inviteQuery.trim().length >= 2 && (
+            <Typography variant="body2" color="text.secondary">
+              No users found.
+            </Typography>
+          )}
+
+          <List>
+            {inviteResults.map((u: any) => {
+              const alreadyInvited = isInvitedUser(u._id);
+              const alreadyInSession = isParticipantUser(u._id);
+              const isInviting = invitingIds.has(u._id);
+
+              return (
+                <ListItem
+                  key={u._id}
+                  secondaryAction={
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={alreadyInvited || alreadyInSession || isInviting}
+                      onClick={() => handleInviteUser(u._id)}
+                    >
+                      {alreadyInSession ? 'In Session' : alreadyInvited ? 'Invited' : isInviting ? 'Inviting...' : 'Invite'}
+                    </Button>
+                  }
+                >
+                  <ListItemAvatar>
+                    <Avatar src={u.avatar}>
+                      {u.firstName?.[0]}{u.lastName?.[0]}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}
+                    secondary={`@${u.username}`}
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+
+          {(session?.invitedUsers || []).length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle2" gutterBottom>
+                Invited
+              </Typography>
+              <Box display="flex" gap={1} flexWrap="wrap">
+                {(session.invitedUsers || []).map((u: any) => (
+                  <Chip
+                    key={u._id}
+                    avatar={<Avatar src={u.avatar}>{u.firstName?.[0]}{u.lastName?.[0]}</Avatar>}
+                    label={`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInviteDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Enhanced Chat Drawer */}
       <Drawer

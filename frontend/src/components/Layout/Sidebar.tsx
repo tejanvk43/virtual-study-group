@@ -23,7 +23,6 @@ import {
   Groups,
   School,
   Chat,
-  SmartToy,
   Person,
   Settings,
   Logout,
@@ -171,12 +170,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       icon: <School />,
       path: '/sessions',
       badge: null,
-    },
-    {
-      text: 'AI Assistant',
-      icon: <SmartToy />,
-      path: '/ai-assistant',
-      badge: 'AI',
     },
   ];
 
